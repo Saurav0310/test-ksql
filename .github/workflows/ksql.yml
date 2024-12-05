@@ -18,9 +18,21 @@ jobs:
 
       - name: Install Confluent Cloud CLI and Dependencies
         run: |
-          curl -sL https://packages.confluent.io/deb/7.0/archive.key | sudo apt-key add -
-          sudo add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/7.0 stable main"
-          sudo apt-get update && sudo apt-get install -y confluent-community
+          # Install dependencies for the Confluent Cloud CLI
+          sudo apt-get update
+          sudo apt-get install -y curl gnupg
+
+          # Add the Confluent APT repository key securely
+          curl -sL https://packages.confluent.io/deb/7.0/archive.key | gpg --dearmor | sudo tee /usr/share/keyrings/confluent-archive-keyring.gpg > /dev/null
+          
+          # Add the Confluent APT repository
+          echo "deb [signed-by=/usr/share/keyrings/confluent-archive-keyring.gpg] https://packages.confluent.io/deb/7.0 stable main" | sudo tee /etc/apt/sources.list.d/confluent.list
+
+          # Update package list and install Confluent Cloud CLI
+          sudo apt-get update
+          sudo apt-get install -y confluent
+
+          # Verify installation
           export PATH="/usr/bin/confluent:$PATH"
           echo "Confluent CLI version:"
           confluent version
