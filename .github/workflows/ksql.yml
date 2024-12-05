@@ -1,0 +1,64 @@
+name: Execute ksqlDB Queries
+
+on:
+  workflow_dispatch:
+    inputs:
+      ksqldb_file:
+        description: "Path to the ksqlDB queries file"
+        required: true
+        default: "queries.sql"
+
+jobs:
+  execute-ksqldb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Confluent Cloud CLI and Dependencies
+        run: |
+          curl -sL https://packages.confluent.io/deb/7.0/archive.key | sudo apt-key add -
+          sudo add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/7.0 stable main"
+          sudo apt-get update && sudo apt-get install -y confluent-community
+          export PATH="/usr/bin/confluent:$PATH"
+          echo "Confluent CLI version:"
+          confluent version
+
+      - name: Read ksqlDB Queries File
+        id: read-file
+        run: |
+          if [ ! -f "${{ github.event.inputs.ksqldb_file }}" ]; then
+            echo "Error: File ${{ github.event.inputs.ksqldb_file }} does not exist."
+            exit 1
+          fi
+          cat "${{ github.event.inputs.ksqldb_file }}" > queries.sql
+
+      - name: Execute ksqlDB Queries
+        env:
+          KSQLDB_URL: ${{ secrets.KSQLDB_URL }} # URL of your Confluent ksqlDB REST API (e.g., https://<ksqldb-endpoint>)
+          KSQLDB_API_KEY: ${{ secrets.KSQLDB_API_KEY }}
+          KSQLDB_API_SECRET: ${{ secrets.KSQLDB_API_SECRET }}
+        run: |
+          # Install curl if not already installed
+          sudo apt-get update && sudo apt-get install -y curl
+
+          # Read the queries from the file
+          QUERIES=$(cat queries.sql)
+
+          # Execute the queries using the ksqlDB REST API
+          RESPONSE=$(curl -s -X POST "$KSQLDB_URL/ksql" \
+            -u "$KSQLDB_API_KEY:$KSQLDB_API_SECRET" \
+            -H "Content-Type: application/vnd.ksql.v1+json" \
+            -d "{\"ksql\": \"$QUERIES\"}")
+
+          echo "Response from ksqlDB: $RESPONSE"
+
+          # Check for errors in the response
+          if echo "$RESPONSE" | grep -q 'error'; then
+            echo "Error executing ksqlDB queries."
+            exit 1
+          fi
+
+      - name: Finish Execution
+        run: echo "ksqlDB queries executed successfully."
