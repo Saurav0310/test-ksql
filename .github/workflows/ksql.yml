@@ -21,12 +21,19 @@ jobs:
           # Install Confluent Cloud CLI
           curl -sL --http1.1 https://cnfl.io/cli | sh -s -- latest
 
-          # Export the CLI path and persist for subsequent steps
-          echo "PATH=\$HOME/.confluent/bin:\$PATH" >> $GITHUB_ENV
+          # Check the location of the CLI
+          echo "Confluent CLI installed in:"
+          find $HOME -name confluent -type f
+
+          # Add the CLI path to the environment
+          export CLI_PATH=$(find $HOME -name confluent -type f | head -n 1)
+          echo "CLI_PATH=$CLI_PATH"
+          echo "PATH=$(dirname $CLI_PATH):\$PATH" >> $GITHUB_ENV
 
       - name: Verify Confluent CLI Installation
         run: |
-          echo "Confluent CLI version:"
+          echo "Verifying Confluent CLI..."
+          which confluent
           confluent version
 
       - name: Read ksqlDB Queries File
@@ -40,14 +47,12 @@ jobs:
 
       - name: Execute ksqlDB Queries
         env:
-          KSQLDB_URL: ${{ secrets.KSQLDB_URL }} # URL of your Confluent ksqlDB REST API (e.g., https://<ksqldb-endpoint>)
+          KSQLDB_URL: ${{ secrets.KSQLDB_URL }}
           KSQLDB_API_KEY: ${{ secrets.KSQLDB_API_KEY }}
           KSQLDB_API_SECRET: ${{ secrets.KSQLDB_API_SECRET }}
         run: |
-          # Read the queries from the file
           QUERIES=$(cat queries.sql)
 
-          # Execute the queries using the ksqlDB REST API
           RESPONSE=$(curl -s -X POST "$KSQLDB_URL/ksql" \
             -u "$KSQLDB_API_KEY:$KSQLDB_API_SECRET" \
             -H "Content-Type: application/vnd.ksql.v1+json" \
@@ -55,7 +60,6 @@ jobs:
 
           echo "Response from ksqlDB: $RESPONSE"
 
-          # Check for errors in the response
           if echo "$RESPONSE" | grep -q 'error'; then
             echo "Error executing ksqlDB queries."
             exit 1
