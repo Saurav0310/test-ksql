@@ -18,22 +18,10 @@ jobs:
 
       - name: Install Confluent Cloud CLI
         run: |
-          # Install Confluent Cloud CLI
-          curl -sL --http1.1 https://cnfl.io/cli | sh -s -- latest
-
-          # Check the location of the CLI
-          echo "Confluent CLI installed in:"
-          find $HOME -name confluent -type f
-
-          # Add the CLI path to the environment
-          export CLI_PATH=$(find $HOME -name confluent -type f | head -n 1)
-          echo "CLI_PATH=$CLI_PATH"
-          echo "PATH=$(dirname $CLI_PATH):\$PATH" >> $GITHUB_ENV
 
       - name: Verify Confluent CLI Installation
         run: |
           echo "Verifying Confluent CLI..."
-          which confluent
           confluent version
 
       - name: Read ksqlDB Queries File
